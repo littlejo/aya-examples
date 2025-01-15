@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["loadbalancer", "loadbalancer-common", "loadbalancer-ebpf"]
+members = ["loadbalancer", "loadbalancer-common", "loadbalancer-ebpf", "udp-server"]
 default-members = ["loadbalancer", "loadbalancer-common"]
 
 [workspace.dependencies]
