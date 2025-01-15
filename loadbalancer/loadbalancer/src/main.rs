@@ -1,6 +1,8 @@
 use anyhow::Context as _;
+use aya::maps::HashMap;
 use aya::programs::{Xdp, XdpFlags};
 use clap::Parser;
+use loadbalancer_common::BackendPorts;
 #[rustfmt::skip]
 use log::{debug, warn};
 use tokio::signal;
@@ -45,6 +47,20 @@ async fn main() -> anyhow::Result<()> {
     program.load()?;
     program.attach(&iface, XdpFlags::default())
         .context("failed to attach the XDP program with default flags - try changing XdpFlags::default() to XdpFlags::SKB_MODE")?;
+
+    let mut backends: HashMap<_, u16, BackendPorts> = HashMap::try_from(
+        ebpf.map_mut("BACKEND_PORTS")
+            .context("Failed to get BACKEND_PORTS")?,
+    )?;
+
+    let mut ports: [u16; 4] = [0; 4];
+    ports[0] = 9876;
+    ports[1] = 9877;
+    ports[2] = 9878;
+
+    let backend_ports = BackendPorts { ports, index: 0 };
+
+    backends.insert(9875, backend_ports, 0)?;
 
     let ctrl_c = signal::ctrl_c();
     println!("Waiting for Ctrl-C...");
