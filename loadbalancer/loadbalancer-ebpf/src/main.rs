@@ -38,6 +38,7 @@ pub fn loadbalancer(ctx: XdpContext) -> u32 {
     }
 }
 
+#[allow(static_mut_refs)]
 fn try_loadbalancer(ctx: XdpContext) -> Result<u32, u32> {
     info!(&ctx, "received a packet");
 
