@@ -3,7 +3,7 @@
 
 use aya_ebpf::{
     macros::{tracepoint, map},
-    maps::HashMap,
+    maps::{PerCpuArray, HashMap},
     programs::TracePointContext,
     helpers::bpf_probe_read_user_str_bytes,
 };
@@ -11,19 +11,15 @@ use aya_log_ebpf::info;
 
 use core::str::from_utf8_unchecked;
 
-const MAX_SMALL_PATH: usize = 16;
+use tracepoint_binary_common::MAX_PATH_LEN;
+
 const FILENAME_OFFSET: usize = 16;
 
 #[map]
-static mut EXCLUDED_CMDS: HashMap<[u8; MAX_SMALL_PATH], u8> = HashMap::with_max_entries(10, 0);
+static EXCLUDED_CMDS: HashMap<[u8; MAX_PATH_LEN], u8> = HashMap::with_max_entries(10, 0);
 
-fn convert_slice(slice: &[u8]) -> [u8; MAX_SMALL_PATH] {
-    let mut array = [0u8; MAX_SMALL_PATH];
-    let len = slice.len().min(MAX_SMALL_PATH);
-    array[..len].copy_from_slice(&slice[..len]);
-
-    array
-}
+#[map]
+static BUF: PerCpuArray<[u8; MAX_PATH_LEN]> = PerCpuArray::with_max_entries(1, 0);
 
 #[tracepoint]
 pub fn tracepoint_binary(ctx: TracePointContext) -> u32 {
@@ -34,18 +30,22 @@ pub fn tracepoint_binary(ctx: TracePointContext) -> u32 {
 }
 
 fn try_tracepoint_binary(ctx: TracePointContext) -> Result<u32, i64> {
-    let mut buf = [0u8; MAX_SMALL_PATH];
-
     let filename = unsafe {
+        let buf = BUF.get_ptr_mut(0).ok_or(0)?;
         let filename_src_addr = ctx.read_at::<*const u8>(FILENAME_OFFSET)?;
-        let filename_bytes = bpf_probe_read_user_str_bytes(filename_src_addr, &mut buf)?;
-        let key: &[u8; MAX_SMALL_PATH] = &convert_slice(filename_bytes);
-        if EXCLUDED_CMDS.get(key).is_some() {
-            info!(&ctx, "No log for this Binary");
-            return Ok(0);
-        }
+        let filename_bytes = bpf_probe_read_user_str_bytes(filename_src_addr, &mut *buf)?;
         from_utf8_unchecked(filename_bytes)
     };
+
+    let is_excluded = unsafe {
+        let buf = BUF.get_ptr(0).ok_or(0)?;
+        EXCLUDED_CMDS.get(&*buf).is_some()
+    };
+
+    if is_excluded {
+        info!(&ctx, "No log for this Binary");
+        return Ok(0);
+    }
 
     info!(&ctx, "tracepoint sys_enter_execve called. Binary: {}", filename);
     Ok(0)

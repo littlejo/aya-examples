@@ -7,7 +7,7 @@ use aya::programs::TracePoint;
 use log::{debug, warn};
 use tokio::signal;
 
-const MAX_SMALL_PATH: usize = 16;
+use tracepoint_binary_common::MAX_PATH_LEN;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -43,14 +43,11 @@ async fn main() -> anyhow::Result<()> {
     let exclude_list = ["/usr/bin/ls", "/usr/bin/top"];
 
     let map = ebpf.map_mut("EXCLUDED_CMDS").ok_or_else(|| anyhow::anyhow!("Map EXCLUDED_CMDS not found"))?;
-    let mut excluded_cmds: HashMap<_, [u8; MAX_SMALL_PATH], u8> = HashMap::try_from(map)?;
+    let mut excluded_cmds: HashMap<_, [u8; MAX_PATH_LEN], u8> = HashMap::try_from(map)?;
 
     for cmd in exclude_list.iter() {
-        let mut key = [0u8; MAX_SMALL_PATH];
-        let bytes = cmd.as_bytes();
-        key[..bytes.len()].copy_from_slice(bytes);
+        let key = cmd_to_key(cmd);
         excluded_cmds.insert(key, 1, 0)?;
-        println!("Inserting key: {:?}", key);
     }
 
     let ctrl_c = signal::ctrl_c();
@@ -59,4 +56,11 @@ async fn main() -> anyhow::Result<()> {
     println!("Exiting...");
 
     Ok(())
+}
+
+fn cmd_to_key(cmd: &str) -> [u8; MAX_PATH_LEN] {
+    let mut key = [0u8; MAX_PATH_LEN];
+    let bytes = cmd.as_bytes();
+    key[..bytes.len()].copy_from_slice(bytes);
+    key
 }
