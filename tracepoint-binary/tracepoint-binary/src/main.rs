@@ -1,7 +1,13 @@
+use aya::maps::HashMap;
+
+use std::convert::TryInto;
+
 use aya::programs::TracePoint;
 #[rustfmt::skip]
 use log::{debug, warn};
 use tokio::signal;
+
+const MAX_SMALL_PATH: usize = 16;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -33,6 +39,19 @@ async fn main() -> anyhow::Result<()> {
     let program: &mut TracePoint = ebpf.program_mut("tracepoint_binary").unwrap().try_into()?;
     program.load()?;
     program.attach("syscalls", "sys_enter_execve")?;
+
+    let exclude_list = ["/usr/bin/ls", "/usr/bin/top"];
+
+    let map = ebpf.map_mut("EXCLUDED_CMDS").ok_or_else(|| anyhow::anyhow!("Map EXCLUDED_CMDS not found"))?;
+    let mut excluded_cmds: HashMap<_, [u8; MAX_SMALL_PATH], u8> = HashMap::try_from(map)?;
+
+    for cmd in exclude_list.iter() {
+        let mut key = [0u8; MAX_SMALL_PATH];
+        let bytes = cmd.as_bytes();
+        key[..bytes.len()].copy_from_slice(bytes);
+        excluded_cmds.insert(key, 1, 0)?;
+        println!("Inserting key: {:?}", key);
+    }
 
     let ctrl_c = signal::ctrl_c();
     println!("Waiting for Ctrl-C...");
