@@ -38,8 +38,8 @@ fn try_tracepoint_binary(ctx: TracePointContext) -> Result<u32, i64> {
     };
 
     let is_excluded = unsafe {
-        let buf = BUF.get_ptr(0).ok_or(0)?;
-        EXCLUDED_CMDS.get(&*buf).is_some()
+        let buf = BUF.get(0).ok_or(0)?;
+        EXCLUDED_CMDS.get(buf).is_some()
     };
 
     if is_excluded {
