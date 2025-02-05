@@ -1,7 +1,5 @@
 use aya::maps::HashMap;
 
-use std::convert::TryInto;
-
 use aya::programs::TracePoint;
 #[rustfmt::skip]
 use log::{debug, warn};
@@ -42,8 +40,8 @@ async fn main() -> anyhow::Result<()> {
 
     let exclude_list = ["/usr/bin/ls", "/usr/bin/top"];
 
-    let map = ebpf.map_mut("EXCLUDED_CMDS").ok_or_else(|| anyhow::anyhow!("Map EXCLUDED_CMDS not found"))?;
-    let mut excluded_cmds: HashMap<_, [u8; MAX_PATH_LEN], u8> = HashMap::try_from(map)?;
+    let map = ebpf.map_mut("EXCLUDED_CMDS").unwrap();
+    let mut excluded_cmds :HashMap<_, [u8; MAX_PATH_LEN], u8> = HashMap::try_from(map)?;
 
     for cmd in exclude_list.iter() {
         let key = cmd_to_key(cmd);
