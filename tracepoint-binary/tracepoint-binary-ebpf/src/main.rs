@@ -10,7 +10,7 @@ use aya_log_ebpf::info;
 
 use core::str::from_utf8_unchecked;
 
-const MAX_SMALL_PATH: usize = 16;
+const LEN_MAX_PATH: usize = 16;
 const FILENAME_OFFSET: usize = 16;
 
 #[tracepoint]
@@ -22,7 +22,7 @@ pub fn tracepoint_binary(ctx: TracePointContext) -> u32 {
 }
 
 fn try_tracepoint_binary(ctx: TracePointContext) -> Result<u32, i64> {
-    let mut buf = [0u8; MAX_SMALL_PATH];
+    let mut buf = [0u8; LEN_MAX_PATH];
 
     let filename = unsafe {
         let filename_src_addr = ctx.read_at::<*const u8>(FILENAME_OFFSET)?;
