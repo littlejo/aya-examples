@@ -1,4 +1,4 @@
-use aya::maps::HashMap;
+use aya::maps::{HashMap, ProgramArray};
 
 use aya::programs::TracePoint;
 #[rustfmt::skip]
@@ -34,6 +34,20 @@ async fn main() -> anyhow::Result<()> {
         // This can happen if you remove all log statements from your eBPF program.
         warn!("failed to initialize eBPF logger: {}", e);
     }
+
+    let map = ebpf.take_map("JUMP_TABLE").unwrap();
+    let mut tail_call_map = ProgramArray::try_from(map)?;
+    let prg_list = ["tracepoint_binary_filter", "tracepoint_binary_display"];
+
+    for (i, prg) in prg_list.iter().enumerate() {
+        {
+           let program: &mut TracePoint = ebpf.program_mut(prg).unwrap().try_into()?;
+           program.load()?;
+           let fd = program.fd().unwrap();
+           tail_call_map.set(i as u32, fd, 0)?;
+        }
+    }
+
     let program: &mut TracePoint = ebpf.program_mut("tracepoint_binary").unwrap().try_into()?;
     program.load()?;
     program.attach("syscalls", "sys_enter_execve")?;

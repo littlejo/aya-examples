@@ -3,11 +3,11 @@
 
 use aya_ebpf::{
     macros::{tracepoint, map},
-    maps::{PerCpuArray, HashMap},
+    maps::{PerCpuArray, HashMap, ProgramArray},
     programs::TracePointContext,
     helpers::bpf_probe_read_user_str_bytes,
 };
-use aya_log_ebpf::info;
+use aya_log_ebpf::{info,error,debug};
 
 use core::str::from_utf8_unchecked;
 
@@ -21,6 +21,9 @@ static EXCLUDED_CMDS: HashMap<[u8; MAX_PATH_LEN], u8> = HashMap::with_max_entrie
 #[map]
 static BUF: PerCpuArray<[u8; MAX_PATH_LEN]> = PerCpuArray::with_max_entries(1, 0);
 
+#[map]
+static JUMP_TABLE: ProgramArray = ProgramArray::with_max_entries(2, 0);
+
 #[tracepoint]
 pub fn tracepoint_binary(ctx: TracePointContext) -> u32 {
     match try_tracepoint_binary(ctx) {
@@ -30,13 +33,31 @@ pub fn tracepoint_binary(ctx: TracePointContext) -> u32 {
 }
 
 fn try_tracepoint_binary(ctx: TracePointContext) -> Result<u32, i64> {
-    let filename = unsafe {
+    debug!(&ctx, "main");
+    let _filename = unsafe {
         let buf = BUF.get_ptr_mut(0).ok_or(0)?;
         let filename_src_addr = ctx.read_at::<*const u8>(FILENAME_OFFSET)?;
         let filename_bytes = bpf_probe_read_user_str_bytes(filename_src_addr, &mut *buf)?;
         from_utf8_unchecked(filename_bytes)
     };
 
+    let res = unsafe { JUMP_TABLE.tail_call(&ctx, 0) };
+    if res.is_err() {
+        error!(&ctx, "main: tail_call failed");
+    }
+    Ok(0)
+}
+
+#[tracepoint]
+pub fn tracepoint_binary_filter(ctx: TracePointContext) -> u32 {
+    match try_tracepoint_binary_filter(ctx) {
+        Ok(ret) => ret,
+        Err(ret) => ret as u32,
+    }
+}
+
+fn try_tracepoint_binary_filter(ctx: TracePointContext) -> Result<u32, i64> {
+    debug!(&ctx, "filter");
     let is_excluded = unsafe {
         let buf = BUF.get(0).ok_or(0)?;
         EXCLUDED_CMDS.get(buf).is_some()
@@ -46,6 +67,30 @@ fn try_tracepoint_binary(ctx: TracePointContext) -> Result<u32, i64> {
         info!(&ctx, "No log for this Binary");
         return Ok(0);
     }
+
+    let res = unsafe { JUMP_TABLE.tail_call(&ctx, 1) };
+    if res.is_err() {
+        error!(&ctx, "filter: tail_call failed");
+    }
+    Ok(0)
+}
+
+#[tracepoint]
+pub fn tracepoint_binary_display(ctx: TracePointContext) -> u32 {
+    match try_tracepoint_binary_display(ctx) {
+        Ok(ret) => ret,
+        Err(ret) => ret as u32,
+    }
+}
+
+fn try_tracepoint_binary_display(ctx: TracePointContext) -> Result<u32, i64> {
+    debug!(&ctx, "display");
+    let filename = unsafe {
+        let buf = BUF.get_ptr_mut(0).ok_or(0)?;
+        let filename_src_addr = ctx.read_at::<*const u8>(FILENAME_OFFSET)?;
+        let filename_bytes = bpf_probe_read_user_str_bytes(filename_src_addr, &mut *buf)?;
+        from_utf8_unchecked(filename_bytes)
+    };
 
     info!(&ctx, "tracepoint sys_enter_execve called. Binary: {}", filename);
     Ok(0)
