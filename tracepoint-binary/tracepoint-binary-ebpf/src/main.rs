@@ -6,6 +6,7 @@ use aya_ebpf::{
     maps::{PerCpuArray, HashMap, ProgramArray},
     programs::TracePointContext,
     helpers::bpf_probe_read_user_str_bytes,
+    helpers::gen::bpf_get_smp_processor_id,
 };
 use aya_log_ebpf::{info,error,debug};
 
@@ -33,7 +34,8 @@ pub fn tracepoint_binary(ctx: TracePointContext) -> u32 {
 }
 
 fn try_tracepoint_binary(ctx: TracePointContext) -> Result<u32, i64> {
-    debug!(&ctx, "main");
+    let cpu_id = unsafe { bpf_get_smp_processor_id() };
+    debug!(&ctx, "main {}", cpu_id as u32);
     let _filename = unsafe {
         let buf = BUF.get_ptr_mut(0).ok_or(0)?;
         let filename_src_addr = ctx.read_at::<*const u8>(FILENAME_OFFSET)?;
@@ -57,7 +59,14 @@ pub fn tracepoint_binary_filter(ctx: TracePointContext) -> u32 {
 }
 
 fn try_tracepoint_binary_filter(ctx: TracePointContext) -> Result<u32, i64> {
-    debug!(&ctx, "filter");
+    let cpu_id = unsafe { bpf_get_smp_processor_id() };
+    debug!(&ctx, "filter {}", cpu_id as u32);
+    let _filename = unsafe {
+        let buf = BUF.get_ptr_mut(0).ok_or(0)?;
+        let filename_src_addr = ctx.read_at::<*const u8>(FILENAME_OFFSET)?;
+        let filename_bytes = bpf_probe_read_user_str_bytes(filename_src_addr, &mut *buf)?;
+        from_utf8_unchecked(filename_bytes)
+    };
     let is_excluded = unsafe {
         let buf = BUF.get(0).ok_or(0)?;
         EXCLUDED_CMDS.get(buf).is_some()
@@ -84,7 +93,8 @@ pub fn tracepoint_binary_display(ctx: TracePointContext) -> u32 {
 }
 
 fn try_tracepoint_binary_display(ctx: TracePointContext) -> Result<u32, i64> {
-    debug!(&ctx, "display");
+    let cpu_id = unsafe { bpf_get_smp_processor_id() };
+    debug!(&ctx, "display {}", cpu_id as u32);
     let filename = unsafe {
         let buf = BUF.get_ptr_mut(0).ok_or(0)?;
         let filename_src_addr = ctx.read_at::<*const u8>(FILENAME_OFFSET)?;
