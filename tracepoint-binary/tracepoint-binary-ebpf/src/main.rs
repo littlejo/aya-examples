@@ -3,7 +3,7 @@
 
 use aya_ebpf::{
     macros::{tracepoint, map},
-    maps::{PerCpuArray, HashMap, ProgramArray},
+    maps::{PerCpuHashMap, HashMap, ProgramArray},
     programs::TracePointContext,
     helpers::bpf_probe_read_user_str_bytes,
     helpers::gen::bpf_get_smp_processor_id,
@@ -15,12 +15,13 @@ use core::str::from_utf8_unchecked;
 use tracepoint_binary_common::MAX_PATH_LEN;
 
 const FILENAME_OFFSET: usize = 16;
+const DEFAULT_VALUE: u8 = 0;
 
 #[map]
 static EXCLUDED_CMDS: HashMap<[u8; MAX_PATH_LEN], u8> = HashMap::with_max_entries(10, 0);
 
 #[map]
-static BUF: PerCpuArray<[u8; MAX_PATH_LEN]> = PerCpuArray::with_max_entries(1, 0);
+static BUF: PerCpuHashMap<u8, [u8; MAX_PATH_LEN]> = PerCpuHashMap::with_max_entries(1, 0);
 
 #[map]
 static JUMP_TABLE: ProgramArray = ProgramArray::with_max_entries(2, 0);
@@ -36,17 +37,17 @@ pub fn tracepoint_binary(ctx: TracePointContext) -> u32 {
 fn try_tracepoint_binary(ctx: TracePointContext) -> Result<u32, i64> {
     let cpu_id = unsafe { bpf_get_smp_processor_id() };
     debug!(&ctx, "main {}", cpu_id as u32);
-    let _filename = unsafe {
-        let buf = BUF.get_ptr_mut(0).ok_or(0)?;
+    unsafe {
+        BUF.insert(&DEFAULT_VALUE, &[0u8; MAX_PATH_LEN], 0)?;
+        let buf = BUF.get_ptr_mut(&DEFAULT_VALUE).ok_or(0)?;
         let filename_src_addr = ctx.read_at::<*const u8>(FILENAME_OFFSET)?;
-        let filename_bytes = bpf_probe_read_user_str_bytes(filename_src_addr, &mut *buf)?;
-        from_utf8_unchecked(filename_bytes)
-    };
-
-    let res = unsafe { JUMP_TABLE.tail_call(&ctx, 0) };
-    if res.is_err() {
-        error!(&ctx, "main: tail_call failed");
+        bpf_probe_read_user_str_bytes(filename_src_addr, &mut *buf)?;
+        let res = JUMP_TABLE.tail_call(&ctx, 0);
+        if res.is_err() {
+            error!(&ctx, "main: tail_call failed");
+        }
     }
+
     Ok(0)
 }
 
@@ -61,14 +62,10 @@ pub fn tracepoint_binary_filter(ctx: TracePointContext) -> u32 {
 fn try_tracepoint_binary_filter(ctx: TracePointContext) -> Result<u32, i64> {
     let cpu_id = unsafe { bpf_get_smp_processor_id() };
     debug!(&ctx, "filter {}", cpu_id as u32);
-    let _filename = unsafe {
-        let buf = BUF.get_ptr_mut(0).ok_or(0)?;
-        let filename_src_addr = ctx.read_at::<*const u8>(FILENAME_OFFSET)?;
-        let filename_bytes = bpf_probe_read_user_str_bytes(filename_src_addr, &mut *buf)?;
-        from_utf8_unchecked(filename_bytes)
-    };
     let is_excluded = unsafe {
-        let buf = BUF.get(0).ok_or(0)?;
+        let buf = BUF.get(&DEFAULT_VALUE).ok_or(0)?;
+        //let buf_copy = *buf;
+        //debug!(&ctx, "buf filter {}", from_utf8_unchecked(&buf_copy));
         EXCLUDED_CMDS.get(buf).is_some()
     };
 
@@ -96,7 +93,7 @@ fn try_tracepoint_binary_display(ctx: TracePointContext) -> Result<u32, i64> {
     let cpu_id = unsafe { bpf_get_smp_processor_id() };
     debug!(&ctx, "display {}", cpu_id as u32);
     let filename = unsafe {
-        let buf = BUF.get_ptr_mut(0).ok_or(0)?;
+        let buf = BUF.get_ptr_mut(&DEFAULT_VALUE).ok_or(0)?;
         let filename_src_addr = ctx.read_at::<*const u8>(FILENAME_OFFSET)?;
         let filename_bytes = bpf_probe_read_user_str_bytes(filename_src_addr, &mut *buf)?;
         from_utf8_unchecked(filename_bytes)
