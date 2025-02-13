@@ -1,0 +1,18 @@
+[package]
+name = "multi-ebpf"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+multi-common = { path = "../multi-common" }
+
+aya-ebpf = { workspace = true }
+aya-log-ebpf = { workspace = true }
+aya-ebpf-bindings = "0.1.1"
+
+[build-dependencies]
+which = { workspace = true }
+
+[[bin]]
+name = "multi"
+path = "src/main.rs"
