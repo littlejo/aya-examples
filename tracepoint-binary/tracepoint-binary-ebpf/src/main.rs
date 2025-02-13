@@ -64,8 +64,6 @@ fn try_tracepoint_binary_filter(ctx: TracePointContext) -> Result<u32, i64> {
     debug!(&ctx, "filter {}", cpu_id as u32);
     let is_excluded = unsafe {
         let buf = BUF.get(&DEFAULT_VALUE).ok_or(0)?;
-        //let buf_copy = *buf;
-        //debug!(&ctx, "buf filter {}", from_utf8_unchecked(&buf_copy));
         EXCLUDED_CMDS.get(buf).is_some()
     };
 
@@ -93,10 +91,8 @@ fn try_tracepoint_binary_display(ctx: TracePointContext) -> Result<u32, i64> {
     let cpu_id = unsafe { bpf_get_smp_processor_id() };
     debug!(&ctx, "display {}", cpu_id as u32);
     let filename = unsafe {
-        let buf = BUF.get_ptr_mut(&DEFAULT_VALUE).ok_or(0)?;
-        let filename_src_addr = ctx.read_at::<*const u8>(FILENAME_OFFSET)?;
-        let filename_bytes = bpf_probe_read_user_str_bytes(filename_src_addr, &mut *buf)?;
-        from_utf8_unchecked(filename_bytes)
+        let cmd = &BUF.get(&DEFAULT_VALUE).ok_or(0)?[..];
+        from_utf8_unchecked(cmd)
     };
 
     info!(&ctx, "tracepoint sys_enter_execve called. Binary: {}", filename);
