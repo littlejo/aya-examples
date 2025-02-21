@@ -1,10 +1,9 @@
-use aya::{
-    programs::TracePoint,
-    maps::HashMap,
-};
+use aya::{maps::HashMap, programs::TracePoint};
 #[rustfmt::skip]
 use log::{debug, warn};
 use tokio::signal;
+
+use aya::maps::ProgramArray;
 
 use tracepoint_binary_common::MAX_PATH_LEN;
 
@@ -41,11 +40,32 @@ async fn main() -> anyhow::Result<()> {
 
     let exclude_list = ["/usr/bin/ls", "/usr/bin/top"];
     let map = ebpf.map_mut("EXCLUDED_CMDS").unwrap();
-    let mut excluded_cmds :HashMap<_, [u8; MAX_PATH_LEN], u8> = HashMap::try_from(map)?;
+    let mut excluded_cmds: HashMap<_, [u8; MAX_PATH_LEN], u8> = HashMap::try_from(map)?;
     for cmd in exclude_list.iter() {
         let key = cmd_to_key(cmd);
         excluded_cmds.insert(key, 1, 0)?;
     }
+
+    let map = ebpf.take_map("JUMP_TABLE").unwrap();
+    let mut tail_call_map = ProgramArray::try_from(map)?;
+
+    let prg_list = ["tracepoint_binary_filter", "tracepoint_binary_display"];
+
+    for (i, prg) in prg_list.iter().enumerate() {
+        {
+            let program: &mut TracePoint = ebpf.program_mut(prg).unwrap().try_into()?;
+            program.load()?;
+            let fd = program.fd().unwrap();
+            tail_call_map.set(i as u32, fd, 0)?;
+        }
+    }
+
+    let program: &mut TracePoint = ebpf
+        .program_mut("tracepoint_binary_exit")
+        .unwrap()
+        .try_into()?;
+    program.load()?;
+    program.attach("syscalls", "sys_exit_execve")?;
 
     let ctrl_c = signal::ctrl_c();
     println!("Waiting for Ctrl-C...");
