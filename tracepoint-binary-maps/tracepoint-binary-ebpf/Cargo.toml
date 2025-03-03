@@ -8,6 +8,7 @@ tracepoint-binary-common = { path = "../tracepoint-binary-common" }
 
 aya-ebpf = { workspace = true }
 aya-log-ebpf = { workspace = true }
+aya-ebpf-bindings = "0.1.1"
 
 [build-dependencies]
 which = { workspace = true }
