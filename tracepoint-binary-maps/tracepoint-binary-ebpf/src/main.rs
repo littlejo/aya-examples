@@ -64,14 +64,12 @@ fn try_tracepoint_binary(ctx: TracePointContext) -> Result<u32, i64> {
     let t = unsafe{ bpf_ktime_get_ns() };
     debug!(&ctx, "main {}", t);
     let tgid = (bpf_get_current_pid_tgid() >> 32) as u32;
-
     PROGRAM.insert(&tgid, &INIT_STATE, 0)?;
 
-    let program = PROGRAM.get_ptr_mut(&tgid).ok_or(0)?;
+    let program_state = unsafe { &mut *PROGRAM.get_ptr_mut(&tgid).ok_or(0)? };
+    program_state.t_enter = t;
 
     unsafe {
-        let program_state = &mut *program;
-        program_state.t_enter = t;
         let filename_src_addr = ctx.read_at::<*const u8>(FILENAME_OFFSET)?;
         bpf_probe_read_user_str_bytes(filename_src_addr, &mut program_state.buffer)?;
     };
@@ -89,9 +87,9 @@ pub fn tracepoint_binary_filter(ctx: TracePointContext) -> u32 {
 fn try_tracepoint_binary_filter(ctx: TracePointContext) -> Result<u32, i64> {
     debug!(&ctx, "filter");
     let tgid = (bpf_get_current_pid_tgid() >> 32) as u32;
-    let program = unsafe { PROGRAM.get(&tgid).ok_or(0)? };
 
     let is_excluded = unsafe {
+        let program = PROGRAM.get(&tgid).ok_or(0)?;
         EXCLUDED_CMDS.get(&program.buffer).is_some()
     };
 
@@ -117,12 +115,9 @@ fn try_tracepoint_binary_display(ctx: TracePointContext) -> Result<u32, i64> {
     let tgid = (bpf_get_current_pid_tgid() >> 32) as u32;
     let program = unsafe { PROGRAM.get(&tgid).ok_or(0)? };
     let cmd = &program.buffer[..];
-    let t_exit = program.t_exit;
-    let t_enter = program.t_enter;
-    let duration = t_exit - t_enter;
     let filename = unsafe { from_utf8_unchecked(cmd) };
 
-    info!(&ctx, "tracepoint sys_enter_execve called. Binary: {}, duration: {}", filename, duration);
+    info!(&ctx, "tracepoint sys_enter_execve called. Binary: {}, duration: {}", filename, program.t_exit-program.t_enter);
     Ok(0)
 }
 
@@ -137,11 +132,8 @@ pub fn tracepoint_binary_exit(ctx: TracePointContext) -> u32 {
 fn try_tracepoint_binary_exit(ctx: TracePointContext) -> Result<u32, i64> {
     let t_exit = unsafe{ bpf_ktime_get_ns() };
     let tgid = (bpf_get_current_pid_tgid() >> 32) as u32;
-    let p = PROGRAM.get_ptr_mut(&tgid).ok_or(0)?;
-    unsafe {
-        let program_state = &mut *p;
-        program_state.t_exit = t_exit;
-    }
+    let program_state = unsafe { &mut *PROGRAM.get_ptr_mut(&tgid).ok_or(0)? };
+    program_state.t_exit = t_exit;
     debug!(&ctx, "exit {}", t_exit);
     try_tail_call(&ctx, 0);
     Ok(0)
