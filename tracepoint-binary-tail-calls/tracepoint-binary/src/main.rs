@@ -1,13 +1,12 @@
 use aya::{
     programs::TracePoint,
-    maps::HashMap,
+    maps::{HashMap, ProgramArray},
 };
 #[rustfmt::skip]
 use log::{debug, warn};
 use tokio::signal;
 
 use tracepoint_binary_common::MAX_PATH_LEN;
-use aya::maps::ProgramArray;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
