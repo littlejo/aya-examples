@@ -3,7 +3,7 @@ use aya_ebpf::{
     programs::TracePointContext,
 };
 
-use aya_log_ebpf::{debug,info};
+use aya_log_ebpf::debug;
 use crate::maps::*;
 use crate::helpers::*;
 
@@ -24,7 +24,7 @@ fn try_tracepoint_binary_filter(ctx: TracePointContext) -> Result<u32, i64> {
     };
 
     if is_excluded {
-        info!(&ctx, "No log for this Binary");
+        debug!(&ctx, "No log for this Binary");
         return Ok(0);
     }
 
