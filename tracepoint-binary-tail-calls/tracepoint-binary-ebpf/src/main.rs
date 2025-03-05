@@ -1,8 +1,9 @@
 #![no_std]
 #![no_main]
 
-mod maps;
 mod helpers;
+mod maps;
+
 mod hook_enter;
 mod filter;
 mod display;
