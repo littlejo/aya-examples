@@ -1,7 +1,7 @@
 use aya_ebpf::programs::TracePointContext;
 
-use aya_log_ebpf::error;
 use crate::maps::*;
+use aya_log_ebpf::error;
 
 #[inline(always)]
 pub fn try_tail_call(ctx: &TracePointContext, index: u32) {

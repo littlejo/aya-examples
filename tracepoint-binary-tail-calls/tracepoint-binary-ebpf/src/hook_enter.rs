@@ -1,11 +1,9 @@
 use aya_ebpf::{
-    macros::tracepoint,
-    programs::TracePointContext,
-    helpers::bpf_probe_read_user_str_bytes,
+    helpers::bpf_probe_read_user_str_bytes, macros::tracepoint, programs::TracePointContext,
 };
 
-use crate::maps::*;
 use crate::helpers::*;
+use crate::maps::*;
 
 use aya_log_ebpf::debug;
 

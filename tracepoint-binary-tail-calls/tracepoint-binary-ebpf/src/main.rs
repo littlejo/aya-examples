@@ -4,9 +4,9 @@
 mod helpers;
 mod maps;
 
-mod hook_enter;
-mod filter;
 mod display;
+mod filter;
+mod hook_enter;
 
 #[cfg(not(test))]
 #[panic_handler]

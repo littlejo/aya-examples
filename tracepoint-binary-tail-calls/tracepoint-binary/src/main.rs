@@ -1,6 +1,6 @@
 use aya::{
-    programs::TracePoint,
     maps::{HashMap, ProgramArray},
+    programs::TracePoint,
 };
 #[rustfmt::skip]
 use log::{debug, warn};
@@ -41,7 +41,7 @@ async fn main() -> anyhow::Result<()> {
 
     let exclude_list = ["/usr/bin/ls", "/usr/bin/top"];
     let map = ebpf.map_mut("EXCLUDED_CMDS").unwrap();
-    let mut excluded_cmds :HashMap<_, [u8; MAX_PATH_LEN], u8> = HashMap::try_from(map)?;
+    let mut excluded_cmds: HashMap<_, [u8; MAX_PATH_LEN], u8> = HashMap::try_from(map)?;
     for cmd in exclude_list.iter() {
         let key = cmd_to_key(cmd);
         excluded_cmds.insert(key, 1, 0)?;
@@ -53,10 +53,10 @@ async fn main() -> anyhow::Result<()> {
 
     for (i, prg) in prg_list.iter().enumerate() {
         {
-           let program: &mut TracePoint = ebpf.program_mut(prg).unwrap().try_into()?;
-           program.load()?;
-           let fd = program.fd().unwrap();
-           tail_call_map.set(i as u32, fd, 0)?;
+            let program: &mut TracePoint = ebpf.program_mut(prg).unwrap().try_into()?;
+            program.load()?;
+            let fd = program.fd().unwrap();
+            tail_call_map.set(i as u32, fd, 0)?;
         }
     }
 

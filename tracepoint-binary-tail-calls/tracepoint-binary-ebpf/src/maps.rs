@@ -1,6 +1,6 @@
 use aya_ebpf::{
     macros::map,
-    maps::{PerCpuArray, HashMap, ProgramArray},
+    maps::{HashMap, PerCpuArray, ProgramArray},
 };
 
 use tracepoint_binary_common::MAX_PATH_LEN;
