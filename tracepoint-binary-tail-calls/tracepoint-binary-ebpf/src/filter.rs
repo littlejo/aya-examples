@@ -1,8 +1,8 @@
 use aya_ebpf::{macros::tracepoint, programs::TracePointContext};
 
-use crate::helpers::*;
-use crate::maps::*;
 use aya_log_ebpf::debug;
+
+use crate::common::*;
 
 #[tracepoint]
 pub fn tracepoint_binary_filter(ctx: TracePointContext) -> u32 {
@@ -22,7 +22,6 @@ fn try_tracepoint_binary_filter(ctx: TracePointContext) -> Result<u32, i64> {
         debug!(&ctx, "No log for this Binary");
         return Ok(0);
     }
-
     try_tail_call(&ctx, 1);
 
     Ok(0)

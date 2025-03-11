@@ -1,12 +1,10 @@
 #![no_std]
 #![no_main]
 
-mod helpers;
-mod maps;
-
+mod common;
 mod display;
 mod filter;
-mod hook_enter;
+mod hook;
 
 #[cfg(not(test))]
 #[panic_handler]

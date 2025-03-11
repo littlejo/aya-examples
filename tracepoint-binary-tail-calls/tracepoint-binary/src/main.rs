@@ -1,10 +1,11 @@
-use aya::{
-    maps::{HashMap, ProgramArray},
-    programs::TracePoint,
-};
+use aya::{maps::HashMap, programs::TracePoint};
 #[rustfmt::skip]
 use log::{debug, warn};
 use tokio::signal;
+
+mod constant;
+use crate::constant::EXCLUDE_LIST;
+use aya::maps::ProgramArray;
 
 use tracepoint_binary_common::MAX_PATH_LEN;
 
@@ -39,16 +40,15 @@ async fn main() -> anyhow::Result<()> {
     program.load()?;
     program.attach("syscalls", "sys_enter_execve")?;
 
-    let exclude_list = ["/usr/bin/ls", "/usr/bin/top"];
     let map = ebpf.map_mut("EXCLUDED_CMDS").unwrap();
     let mut excluded_cmds: HashMap<_, [u8; MAX_PATH_LEN], u8> = HashMap::try_from(map)?;
-    for cmd in exclude_list.iter() {
+    for cmd in EXCLUDE_LIST.iter() {
         let key = cmd_to_key(cmd);
         excluded_cmds.insert(key, 1, 0)?;
     }
 
-    let map = ebpf.take_map("JUMP_TABLE").unwrap();
-    let mut tail_call_map = ProgramArray::try_from(map)?;
+    let mut tail_call_map = ProgramArray::try_from(ebpf.take_map("JUMP_TABLE").unwrap())?;
+
     let prg_list = ["tracepoint_binary_filter", "tracepoint_binary_display"];
 
     for (i, prg) in prg_list.iter().enumerate() {
