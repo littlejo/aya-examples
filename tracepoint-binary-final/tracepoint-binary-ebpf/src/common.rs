@@ -1,6 +1,6 @@
 use aya_ebpf::{
     macros::map,
-    maps::{HashMap, ProgramArray, LruHashMap},
+    maps::{HashMap, LruHashMap, ProgramArray},
     programs::TracePointContext,
 };
 

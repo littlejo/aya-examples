@@ -40,7 +40,10 @@ async fn main() -> anyhow::Result<()> {
     program.load()?;
     program.attach("syscalls", "sys_enter_execve")?;
 
-    let program: &mut TracePoint = ebpf.program_mut("tracepoint_binary_exit").unwrap().try_into()?;
+    let program: &mut TracePoint = ebpf
+        .program_mut("tracepoint_binary_exit")
+        .unwrap()
+        .try_into()?;
     program.load()?;
     program.attach("syscalls", "sys_exit_execve")?;
 

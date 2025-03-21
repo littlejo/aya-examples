@@ -1,8 +1,7 @@
-use aya_ebpf::{macros::tracepoint, programs::TracePointContext};
 use aya_ebpf::helpers::bpf_get_current_pid_tgid;
+use aya_ebpf::{macros::tracepoint, programs::TracePointContext};
 use aya_log_ebpf::{debug, info};
 use core::str::from_utf8_unchecked;
-
 
 use crate::common::*;
 

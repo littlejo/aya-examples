@@ -1,10 +1,10 @@
+use aya_ebpf::helpers::bpf_get_current_pid_tgid;
 use aya_ebpf::{
     helpers::bpf_probe_read_user_str_bytes, macros::tracepoint, programs::TracePointContext,
 };
-use aya_ebpf::helpers::bpf_get_current_pid_tgid;
 
-use aya_log_ebpf::debug;
 use aya_ebpf_bindings::helpers::bpf_ktime_get_ns;
+use aya_log_ebpf::debug;
 
 use crate::common::*;
 
@@ -25,7 +25,7 @@ pub fn tracepoint_binary(ctx: TracePointContext) -> u32 {
 }
 
 fn try_tracepoint_binary(ctx: TracePointContext) -> Result<u32, i64> {
-    let t = unsafe{ bpf_ktime_get_ns() };
+    let t = unsafe { bpf_ktime_get_ns() };
     debug!(&ctx, "main {}", t);
     let tgid = (bpf_get_current_pid_tgid() >> 32) as u32;
     PROGRAM.insert(&tgid, &INIT_STATE, 0)?;

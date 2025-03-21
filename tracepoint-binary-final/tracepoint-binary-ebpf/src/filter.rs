@@ -19,9 +19,7 @@ fn try_tracepoint_binary_filter(ctx: TracePointContext) -> Result<u32, i64> {
     let tgid = (bpf_get_current_pid_tgid() >> 32) as u32;
     let program = unsafe { PROGRAM.get(&tgid).ok_or(0)? };
 
-    let is_excluded = unsafe {
-        EXCLUDED_CMDS.get(&program.buffer).is_some()
-    };
+    let is_excluded = unsafe { EXCLUDED_CMDS.get(&program.buffer).is_some() };
 
     if is_excluded || program.ret != 0 {
         debug!(&ctx, "No log for this Binary");
