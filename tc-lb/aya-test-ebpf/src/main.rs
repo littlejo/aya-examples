@@ -3,7 +3,6 @@
 
 use aya_ebpf::{bindings::TC_ACT_PIPE, macros::classifier, programs::TcContext};
 use aya_ebpf::bindings::TC_ACT_SHOT;
-use aya_ebpf::bindings::BPF_F_PSEUDO_HDR;
 use aya_log_ebpf::info;
 
 
@@ -50,7 +49,7 @@ fn try_aya_test(mut ctx: TcContext) -> Result<i32, ()> {
         offset + 6,
         old_port as u64,
         new_port as u64,
-        0x2 | BPF_F_PSEUDO_HDR as u64,
+        0x2,
     ).map_err(|_| ())?;
     info!(&ctx, "Checksum replacement done.");
 
