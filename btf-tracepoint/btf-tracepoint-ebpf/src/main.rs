@@ -5,6 +5,8 @@ use aya_ebpf::helpers::bpf_probe_read_kernel_str_bytes;
 use aya_ebpf::{macros::btf_tracepoint, programs::BtfTracePointContext};
 use aya_log_ebpf::info;
 
+use core::str::from_utf8_unchecked;
+
 #[allow(
     clippy::all,
     dead_code,
@@ -26,17 +28,18 @@ pub fn sched_process_exec(ctx: BtfTracePointContext) -> i32 {
 }
 
 fn try_sched_process_exec(ctx: BtfTracePointContext) -> Result<i32, i64> {
-    unsafe {
+    let mut buf = [0u8; 32];
+
+    let filename = unsafe {
         let linux_binprm: *const linux_binprm = ctx.arg(2);
         let linux_binprm: &linux_binprm = &*linux_binprm;
 
-        let mut buf = [0u8; 32];
         let filename_ptr = linux_binprm.filename as *const u8;
-        let filename = bpf_probe_read_kernel_str_bytes(filename_ptr, &mut buf)
-            .map(|s| core::str::from_utf8_unchecked(s))?;
+        let filename_bytes = bpf_probe_read_kernel_str_bytes(filename_ptr, &mut buf)?;
+        from_utf8_unchecked(filename_bytes)
+    };
 
-        info!(&ctx, "tracepoint sched_process_exec called {}", filename);
-    }
+    info!(&ctx, "tracepoint sched_process_exec called {}", filename);
     Ok(0)
 }
 
