@@ -1,0 +1,18 @@
+[package]
+name = "uretprobe-test-ebpf"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+uretprobe-test-common = { path = "../uretprobe-test-common" }
+
+aya-ebpf = { workspace = true }
+aya-log-ebpf = { workspace = true }
+aya-ebpf-bindings = "0.1.1"
+
+[build-dependencies]
+which = { workspace = true }
+
+[[bin]]
+name = "uretprobe-test"
+path = "src/main.rs"
